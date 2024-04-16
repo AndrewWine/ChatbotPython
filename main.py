@@ -1,9 +1,9 @@
 import json
-import os
 import pickle
 import random
 import nltk
 import numpy
+from Modul.webscraping import scrape_data
 from nltk.stem import LancasterStemmer
 from tensorflow.python.keras.layers import Dense
 from tensorflow.python.keras.models import Sequential
@@ -17,13 +17,13 @@ def main():
 nltk.download('punkt')
 
 stemmer = LancasterStemmer()
-with open(os.path.join("DataJson", "intents.json"), encoding='utf-8') as file:
+with open("DataJson/data.json", encoding='utf-8') as file:
     data = json.load(file)
 
 
 
 try:
-    with open("chatbot.pickle", "rb") as file:
+    with open("Model/chatbot.pickle", "rb") as file:
         words, labels, training, output = pickle.load(file)
 
 except:
@@ -72,11 +72,11 @@ except:
     training = numpy.array(training)
     output = numpy.array(output)
 
-    with open("chatbot.pickle", "wb") as file:
+    with open("Model/chatbot.pickle", "wb") as file:
         pickle.dump((words, labels, training, output), file)
 
 try:
-    yaml_file = open('chatbotmodel.yaml', 'r')
+    yaml_file = open('Model/chatbotmodel.yaml', 'r')
     loaded_model_yaml = yaml_file.read()
     yaml_file.close()
     myChatModel = model_from_yaml(loaded_model_yaml)
@@ -98,7 +98,7 @@ except:
     # serialize model to yaml and save it to disk
     model_json = myChatModel.to_json()
 
-    with open("chatbotmodel.yaml", "w") as y_file:
+    with open("Model/chatbotmodel.yaml", "w") as y_file:
         y_file.write(model_json)
 
     # serialize weights to HDF5
@@ -126,37 +126,22 @@ def chatWithBot(inputText):
     numpyCurrentText = numpy.array(currentTextArray)
 
     if numpy.all((numpyCurrentText == 0)):
-        return "cook"
+        return "I didn't get that, try again"
 
     result = myChatModel.predict(numpyCurrentText[0:1])
     result_index = numpy.argmax(result)
     tag = labels[result_index]
 
-    # Đọc các file JSON
-    with open(r'text.json', 'r', encoding='utf-8') as f:
-        dict_text = json.load(f)
-
-    with open(r'href.json', 'r', encoding='utf-8') as f:
-        dict_links = json.load(f)
-
-    # Lấy danh sách tất cả các ID
-    all_ids = list(dict_text.keys())
-
-    # Lấy một số lượng ID ngẫu nhiên
-    selected_ids = random.sample(all_ids,2)
-
-    # Xây dựng câu trả lời với text và href tương ứng
-    responses = []
-    for id in selected_ids:
-        text = "ID: " + id + ", Text: " + dict_text[id] + ", Link: " + " " + dict_links[id] + "\n"
-        responses.append(text)
-
-    # Trong phần xử lý kết quả của bạn, sử dụng mảng responses
     if result[0][result_index] > 0.7:
-        for tg in data["intents"]:
+        scrape_data(tag)
+        with open("DataJson/data.json", encoding='utf-8') as file:
+            new_data = json.load(file)
+        for tg in new_data["intents"]:
             if tg['tag'] == tag:
-                return random.sample(responses, 2)
+                return random.sample(tg["responses"],2)
+
         return "Try again"
+
     else:
         return "I didn't get that, try again"
 
@@ -173,3 +158,6 @@ def chat():
 
 
 # chat()
+
+
+
